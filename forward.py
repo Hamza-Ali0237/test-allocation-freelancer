@@ -1,4 +1,4 @@
-import logging
+import copy
 
 from forest_allocation import RandomForestAllocation
 from misc_custom import call_allocation_algorithm
@@ -28,23 +28,25 @@ def query_and_score(
         allocations_list=allocations,
     )
 
-    print(f"apys: {apys}")
-    print(f"max_apy:\n{max_apy}")
+    # print(f"apys: {apys}")
+    # print(f"max_apy:\n{max_apy}")
     return apys, max_apy
 
 
 def main():
     assets_and_pools = generate_assets_and_pools()
+
     pools = assets_and_pools['pools']
     total_asset = assets_and_pools['total_assets']
     simple_allocations = {k: total_asset / len(pools) for k, v in pools.items()}
     model_allocation = model.predict_allocation(assets_and_pools)
     dn_allocation = call_allocation_algorithm(assets_and_pools)
-
     apys, max_apy = query_and_score([simple_allocations, model_allocation, dn_allocation], assets_and_pools)
+    # apys, max_apy = query_and_score([simple_allocations, model_allocation, dn_allocation], assets_and_pools)
     # print(f"max_apy: {max_apy}")
     return apys
 
 
 if __name__ == '__main__':
-    main()
+    apys = main()
+    print(apys)
