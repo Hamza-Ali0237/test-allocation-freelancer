@@ -1,10 +1,12 @@
 import copy
-import logging
 import math
-import sys
-from typing import List, Dict, Any, Union
+import time
+from typing import Dict, Any, Union
+
+import torch
+
 from constants import QUERY_TIMEOUT, STEEPNESS, DIV_FACTOR, NUM_POOLS
-from misc import check_allocations, supply_rate
+from misc import supply_rate
 
 
 def sigmoid_scale(
@@ -41,64 +43,66 @@ def reward(
 
 
 def calculate_aggregate_apy(
-        allocations: Dict[str, float],
-        assets_and_pools: Dict[str, Union[Dict[str, float], float]],
+        initial_balance: int,
+        allocations: torch.Tensor,
+        pools: torch.Tensor,
         timesteps: int,
         pool_history: Dict[str, Dict[str, Any]],
 ):
     """
     Calculates aggregate yields given intial assets and pools, pool history, and number of timesteps
     """
+    util_rate = pool_history[:, :, 2] / pool_history[:, :, -1]
 
     # calculate aggregate yield
-    initial_balance = assets_and_pools["total_assets"]
     pct_yield = 0
     for pools in pool_history:
         curr_yield = 0
         for uid, allocs in allocations.items():
-            pool_data = pools[uid]
-            util_rate = pool_data["borrow_amount"] / pool_data["reserve_size"]
+            # pool_data = pools[uid]
+            # util_rate = pool_data["borrow_amount"] / pool_data["reserve_size"]
             pool_yield = allocs * supply_rate(util_rate, assets_and_pools["pools"][uid])
             curr_yield += pool_yield
         pct_yield += curr_yield
 
     pct_yield /= initial_balance
-    aggregate_apy = (
-                            pct_yield / timesteps
-                    ) * 365  # for simplicity each timestep is a day in the simulator
-
+    aggregate_apy = (pct_yield / timesteps) * 365  # for simplicity each timestep is a day in the simulator
     return aggregate_apy
 
-
-def get_rewards(simulator, allocations):
-    """
-    Returns a tensor of rewards for the given query and responses.
-
-    Args:
-    - query (int): The query sent to the miner.
-    - responses (List[float]): A list of responses from the miner.
-
-    Returns:
-    - torch.FloatTensor: A tensor of rewards for the given query and responses.
-    - allocs: miner allocations along with their respective yields
-    """
-
-    init_assets_and_pools = copy.deepcopy(simulator.assets_and_pools)
-
-    # reset simulator for next run
-    simulator.reset()
-
-    # miner does not appear to be cheating - so we init simulator data
-    simulator.init_data(copy.deepcopy(init_assets_and_pools), allocations)
-
-    # update reserves given allocation
-    simulator.update_reserves_with_allocs()
-    simulator.run()
-    aggregate_apy = calculate_aggregate_apy(
-        allocations,
-        init_assets_and_pools,
-        simulator.timesteps,
-        simulator.pool_history,
-    )
-
-    return aggregate_apy
+# def get_rewards(simulator, allocations):
+#     """
+#     Returns a tensor of rewards for the given query and responses.
+#
+#     Args:
+#     - query (int): The query sent to the miner.
+#     - responses (List[float]): A list of responses from the miner.
+#
+#     Returns:
+#     - torch.FloatTensor: A tensor of rewards for the given query and responses.
+#     - allocs: miner allocations along with their respective yields
+#     """
+#
+#     # init_assets_and_pools = copy.deepcopy(simulator.assets_and_pools)
+#
+#     # reset simulator for next run
+#     # simulator.reset()
+#
+#     # miner does not appear to be cheating - so we init simulator data
+#     # simulator.init_data(init_assets_and_pools, allocations)
+#
+#     t1 = time.time()
+#
+#     # update reserves given allocation
+#     simulator.update_reserves_with_allocs()
+#     t2 = time.time()
+#     simulator.run()
+#     t3 = time.time()
+#     aggregate_apy = calculate_aggregate_apy(
+#         allocations,
+#         init_assets_and_pools,
+#         simulator.timesteps,
+#         simulator.pool_history,
+#     )
+#     t4 = time.time()
+#
+#     return aggregate_apy
