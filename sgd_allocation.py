@@ -1,14 +1,12 @@
 import copy
-import time
 from decimal import Decimal
 
 import torch
-import numpy as np
 from torch import optim
 from torch.autograd import Variable
 
 from forest_allocation import RandomForestAllocation
-from grad.simulator_grad import Simulator
+from grad.simulator_grad import run
 
 
 class SGDAllocation:
@@ -16,7 +14,6 @@ class SGDAllocation:
         self.epoch = epoch
         self.lr = lr
         self._device = device
-        self._simulator = Simulator()
         self._model = RandomForestAllocation()
 
     def convert_pool_to_tensor(self, assets_and_pools, init_allocations):
@@ -31,25 +28,22 @@ class SGDAllocation:
         return pools, allocations
 
     def _maximize_apy_allocations(self, assets_and_pools, init_allocations):
-        total_assets = assets_and_pools['total_assets']
+        total_assets = torch.tensor(assets_and_pools['total_assets'], device=self._device)
         pools, allocations = self.convert_pool_to_tensor(assets_and_pools, init_allocations)
 
-        optimizer = optim.SGD(params=[allocations], lr=self.lr)
+        optimizer = optim.Adam(params=[allocations], lr=self.lr)
 
         for epoch in range(self.epoch):
             optimizer.zero_grad()
             _allocations = allocations / torch.sum(allocations)
             _allocations *= total_assets
-            t1 = time.time()
-            apy = self._simulator.run(_allocations, pools, total_assets)
-            # torch.jit.script(query_and_score, example_inputs=(allocations, assets_and_pools))
-            t2 = time.time()
-            print(f"SGD epoch time: {(t2 - t1) * 1000:.2f} ms", float(apy))
+            # t1 = time.time()
+            apy = run(_allocations, pools, total_assets)
+            # t2 = time.time()
+            # print(f"SGD epoch time: {(t2 - t1) * 1000:.2f} ms", float(apy))
             apy = -apy
             apy.backward()
             optimizer.step()
-        # with torch.no_grad():
-        #     allocations += torch.min(allocations)
         return allocations
 
     def predict_allocation(self, assets_and_pools, initial_allocations=None):
