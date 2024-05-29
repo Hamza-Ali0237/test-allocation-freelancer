@@ -31,16 +31,13 @@ class SGDAllocation:
         total_assets = torch.tensor(assets_and_pools['total_assets'], device=self._device)
         pools, allocations = self.convert_pool_to_tensor(assets_and_pools, init_allocations)
 
-        optimizer = optim.Adam(params=[allocations], lr=self.lr)
+        optimizer = optim.AdamW(params=[allocations], lr=self.lr)
 
         for epoch in range(self.epoch):
             optimizer.zero_grad()
             _allocations = allocations / torch.sum(allocations)
             _allocations *= total_assets
-            # t1 = time.time()
             apy = run(_allocations, pools, total_assets)
-            # t2 = time.time()
-            # print(f"SGD epoch time: {(t2 - t1) * 1000:.2f} ms", float(apy))
             apy = -apy
             apy.backward()
             optimizer.step()

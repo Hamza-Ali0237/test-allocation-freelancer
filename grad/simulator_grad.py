@@ -65,10 +65,10 @@ def generate_new_pool_data(pools, pool_history):
 
 @torch.jit.script
 def run(allocations, pools, initial_balance):
-    timesteps = 5
+    timesteps = 1
     pct_yield = 0
 
-    pool_history: torch.Tensor = init_data(pools)
+    pool_history = init_data(pools)
     pool_history = update_reserves_with_allocs(allocations, pools, pool_history)
     pct_yield += calc_apy(allocations, pools, pool_history)
     for ts in range(1, timesteps):
@@ -77,28 +77,3 @@ def run(allocations, pools, initial_balance):
     pct_yield /= initial_balance
     aggregate_apy = (pct_yield / timesteps) * 365
     return aggregate_apy
-
-
-# class Simulator(object):
-#     COLUMNS = ['borrow_amount', 'reserve_size', 'borrow_rate']
-#
-#     def __init__(
-#             self,
-#             timesteps=TIMESTEPS,
-#             reversion_speed=REVERSION_SPEED,
-#             stochasticity=STOCHASTICITY,
-#             seed=None,
-#     ):
-#         self.timesteps = timesteps
-#         self.reversion_speed = reversion_speed
-#         self.stochasticity = stochasticity
-#         self.seed = seed
-
-    # initializes data - by default these are randomly generated
-
-    # update the reserves in the pool with given allocations
-
-    # initialize pools
-    # Function to update borrow amounts and other pool params based on reversion rate and stochasticity
-
-    # run simulation
