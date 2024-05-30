@@ -29,17 +29,23 @@ class SGDAllocation:
         pools = self.convert_pool_to_tensor(assets_and_pools)
 
         model = Model(init_allocations)
+        model = model.to(self._device)
         optimizer = optim.SGD(params=model.parameters(), lr=self.lr)
 
         for epoch in range(self.epoch):
             optimizer.zero_grad()
+            with torch.no_grad():
+                model.allocations.copy_(model.projection_simplex_sort(model.allocations))
+
             apy = model(pools, total_assets)
             apy = -apy
             apy.backward()
             optimizer.step()
 
-        allocations = model.allocations / torch.sum(model.allocations, dim=0) * total_assets
-        return allocations
+            with torch.no_grad():
+                model.allocations.copy_(model.projection_simplex_sort(model.allocations))
+
+        return model.allocations
 
     def predict_allocation(self, assets_and_pools, initial_allocations=None):
         if initial_allocations is None:
