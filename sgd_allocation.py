@@ -31,6 +31,7 @@ class SGDAllocation:
         model = Model(init_allocations)
         model = model.to(self._device)
         optimizer = optim.SGD(params=model.parameters(), lr=self.lr)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.9)
 
         for epoch in range(self.epoch):
             optimizer.zero_grad()
@@ -41,6 +42,7 @@ class SGDAllocation:
             apy = -apy
             apy.backward()
             optimizer.step()
+            scheduler.step()
 
             with torch.no_grad():
                 model.allocations.copy_(model.projection_simplex_sort(model.allocations))
