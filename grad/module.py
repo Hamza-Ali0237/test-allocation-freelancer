@@ -8,7 +8,6 @@ class Model(torch.nn.Module):
         super(Model, self).__init__()
         self.allocations = torch.nn.Parameter(
             torch.tensor(list(init_allocations.values()), dtype=torch.float32))
-        self._softmax = torch.nn.Softmax(dim=0)
 
     def forward(self, pools, total_assets):
         x = self.allocations

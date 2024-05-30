@@ -11,7 +11,7 @@ from sgd_allocation import SGDAllocation
 from simulator import Simulator
 
 model = RandomForestAllocation()
-sgd = SGDAllocation(epoch=30, lr=5e-4, device='cpu')
+sgd = SGDAllocation(epoch=30, lr=1e-3, device='cpu')
 
 
 def query_and_score(
