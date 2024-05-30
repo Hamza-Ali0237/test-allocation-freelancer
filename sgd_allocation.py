@@ -3,10 +3,9 @@ from decimal import Decimal
 
 import torch
 from torch import optim
-from torch.autograd import Variable
 
 from forest_allocation import RandomForestAllocation
-from grad.simulator_grad import run
+from grad.module import Model
 
 
 class SGDAllocation:
@@ -16,31 +15,30 @@ class SGDAllocation:
         self._device = device
         self._model = RandomForestAllocation()
 
-    def convert_pool_to_tensor(self, assets_and_pools, init_allocations):
+    def convert_pool_to_tensor(self, assets_and_pools):
         columns = ['base_rate', 'base_slope', 'borrow_amount', 'kink_slope', 'optimal_util_rate', 'reserve_size']
         data = []
         for id, pool in assets_and_pools['pools'].items():
             del pool['pool_id']
             data.append([pool[column] for column in columns])
-        pools = torch.tensor(data, device=self._device)
-
-        allocations = Variable(torch.tensor(list(init_allocations.values()), device=self._device), requires_grad=True)
-        return pools, allocations
+        pools = torch.tensor(data, device=self._device, dtype=torch.float32)
+        return pools
 
     def _maximize_apy_allocations(self, assets_and_pools, init_allocations):
         total_assets = torch.tensor(assets_and_pools['total_assets'], device=self._device)
-        pools, allocations = self.convert_pool_to_tensor(assets_and_pools, init_allocations)
+        pools = self.convert_pool_to_tensor(assets_and_pools)
 
-        optimizer = optim.AdamW(params=[allocations], lr=self.lr)
+        model = Model(init_allocations)
+        optimizer = optim.SGD(params=model.parameters(), lr=1e-3)
 
-        for epoch in range(self.epoch):
+        for epoch in range(30):
             optimizer.zero_grad()
-            _allocations = allocations / torch.sum(allocations)
-            _allocations *= total_assets
-            apy = run(_allocations, pools, total_assets)
+            apy = model(pools, total_assets)
             apy = -apy
             apy.backward()
             optimizer.step()
+
+        allocations = model.allocations / torch.sum(model.allocations, dim=0) * total_assets
         return allocations
 
     def predict_allocation(self, assets_and_pools, initial_allocations=None):
