@@ -29,9 +29,9 @@ class SGDAllocation:
         pools = self.convert_pool_to_tensor(assets_and_pools)
 
         model = Model(init_allocations)
-        optimizer = optim.SGD(params=model.parameters(), lr=1e-3)
+        optimizer = optim.SGD(params=model.parameters(), lr=self.lr)
 
-        for epoch in range(30):
+        for epoch in range(self.epoch):
             optimizer.zero_grad()
             apy = model(pools, total_assets)
             apy = -apy
