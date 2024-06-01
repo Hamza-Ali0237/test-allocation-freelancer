@@ -9,7 +9,7 @@ from grad.module import Model
 
 
 class SGDAllocation:
-    def __init__(self, epoch=30, lr=1e-3, device='cpu'):
+    def __init__(self, epoch=15, lr=1e-3, device='cpu'):
         self.epoch = epoch
         self.lr = lr
         self._device = device
