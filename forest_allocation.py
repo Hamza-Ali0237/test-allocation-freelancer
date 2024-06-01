@@ -14,6 +14,7 @@ class RandomForestAllocation:
             self._model = pickle.load(f)
         with open('scaler.pkl', 'rb') as f:
             self._scaler = pickle.load(f)
+        self._model.n_jobs = 1
 
     def predict_allocation(self, assets_and_pools):
         total_assets = Decimal(assets_and_pools['total_assets'])
