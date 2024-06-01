@@ -19,11 +19,11 @@ class SGDAllocation:
         data = []
         for id, pool in assets_and_pools['pools'].items():
             data.append([pool[column] for column in columns])
-        pools = torch.tensor([data], device=self._device, dtype=torch.float32)
+        pools = torch.tensor(data, device=self._device, dtype=torch.float32)
         return pools
 
     def _maximize_apy_allocations(self, assets_and_pools, init_allocations):
-        init_allocations = np.array([list(init_allocations.values())], dtype=np.float32)
+        init_allocations = np.array(list(init_allocations.values()), dtype=np.float32)
 
         total_assets = torch.tensor(assets_and_pools['total_assets'], device=self._device)
         pools = self.convert_pool_to_tensor(assets_and_pools)
@@ -33,10 +33,11 @@ class SGDAllocation:
         optimizer = optim.SGD(params=model.parameters(), lr=self.lr)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.9)
 
+        with torch.no_grad():
+            model.allocations.copy_(model.projection_simplex_sort(model.allocations))
+
         for epoch in range(self.epoch):
             optimizer.zero_grad()
-            with torch.no_grad():
-                model.allocations[0].copy_(model.projection_simplex_sort(model.allocations[0]))
 
             apy = model(pools, total_assets)
             apy = -apy
@@ -45,9 +46,9 @@ class SGDAllocation:
             scheduler.step()
 
             with torch.no_grad():
-                model.allocations[0].copy_(model.projection_simplex_sort(model.allocations[0]))
+                model.allocations.copy_(model.projection_simplex_sort(model.allocations))
 
-        return model.allocations[0]
+        return model.allocations
 
     def predict_allocation(self, assets_and_pools, initial_allocations=None):
         allocations = self._maximize_apy_allocations(copy.deepcopy(assets_and_pools), initial_allocations)
