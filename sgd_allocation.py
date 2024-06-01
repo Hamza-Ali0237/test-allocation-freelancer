@@ -1,9 +1,7 @@
-import os
 import copy
 from decimal import Decimal
 
 import torch
-import numpy as np
 from torch import optim
 
 from forest_allocation import RandomForestAllocation
@@ -12,7 +10,6 @@ from grad.module import Model
 
 class SGDAllocation:
     def __init__(self, epoch=15, lr=1e-3, device='cpu'):
-        os.environ["OMP_NUM_THREADS"] = "64"
         self.epoch = epoch
         self.lr = lr
         self._device = device
