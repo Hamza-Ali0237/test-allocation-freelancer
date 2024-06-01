@@ -1,7 +1,14 @@
 import json
+from argparse import ArgumentParser
 from threading import Thread
 
 import requests as re
+
+
+def parse():
+    parser = ArgumentParser()
+    parser.add_argument('instances', type=int, default=10)
+    return parser.parse_args()
 
 
 def data_gen(sample_filepath: str, total_assets=2):
@@ -24,13 +31,13 @@ def post(assets_and_pools, ip):
 def run():
     for assets_and_pools in data_gen('training_data.txt'):
         response = post(assets_and_pools, ip='127.0.0.1:8080')
-        print(response['time'])
 
 
 if __name__ == '__main__':
-    instances = 10
+    args = parse()
+
     threads = []
-    for i in range(instances):
+    for i in range(args.instances):
         thread = Thread(target=run)
         threads.append(thread)
 
