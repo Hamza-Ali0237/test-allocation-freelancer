@@ -51,7 +51,7 @@ def predict():
         assets_and_pools = data['assets_and_pools']
 
         t1 = time.time()
-        allocations = pool.map(task, (assets_and_pools,))
+        allocations = pool.apply(task, (assets_and_pools,))
         t2 = time.time()
 
         response = {
