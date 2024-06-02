@@ -53,11 +53,11 @@ def predict():
         t1 = time.time()
         allocations = pool.apply(task, (assets_and_pools,))
         t2 = time.time()
+        print(f"Time: {(t2 - t1) * 1000:.2f} ms")
 
         response = {
             "message": "predict successfully",
-            "result": allocations,
-            "time_ms": (t2 - t1) * 1000,
+            "result": allocations
         }
         return jsonify(response), 200
     else:
