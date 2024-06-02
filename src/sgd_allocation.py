@@ -3,16 +3,19 @@ from decimal import Decimal
 
 import torch
 import numpy as np
+import torch
 from torch import optim
 
-from src.module import Model
+from src.module import Model, projection_simplex_sort
 
 
 class SGDAllocation:
-    def __init__(self, epoch=15, lr=1e-3, device='cpu'):
+    def __init__(self, epoch=15, lr=1e-3, num_cpu=2, device='cpu'):
         self.epoch = epoch
         self.lr = lr
         self._device = device
+        torch.set_num_threads(num_cpu)
+        torch.set_num_interop_threads(num_cpu)
 
     def convert_pool_to_tensor(self, assets_and_pools):
         columns = ['base_rate', 'base_slope', 'borrow_amount', 'kink_slope', 'optimal_util_rate', 'reserve_size']
@@ -34,7 +37,7 @@ class SGDAllocation:
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.9)
 
         with torch.no_grad():
-            model.allocations.copy_(model.projection_simplex_sort(model.allocations))
+            model.allocations.copy_(projection_simplex_sort(model.allocations))
 
         for epoch in range(self.epoch):
             optimizer.zero_grad()
@@ -46,7 +49,7 @@ class SGDAllocation:
             scheduler.step()
 
             with torch.no_grad():
-                model.allocations.copy_(model.projection_simplex_sort(model.allocations))
+                model.allocations.copy_(projection_simplex_sort(model.allocations))
 
         return model.allocations
 
