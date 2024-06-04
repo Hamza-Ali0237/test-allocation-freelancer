@@ -1,4 +1,5 @@
 import json
+import time
 from argparse import ArgumentParser
 from threading import Thread
 
@@ -30,7 +31,10 @@ def post(assets_and_pools, ip):
 
 def run():
     for assets_and_pools in data_gen('training_data.txt'):
+        time_0 = time.time_ns()
         response = post(assets_and_pools, ip='127.0.0.1:8080')
+        time_1 = time.time_ns()
+        print(f"time processing: {(time_1 - time_0)//1000_000}")
 
 
 if __name__ == '__main__':

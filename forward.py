@@ -3,12 +3,12 @@ import time
 
 import tqdm
 
-from forest_allocation import RandomForestAllocation
 from misc_custom import call_allocation_algorithm
 from pools import generate_assets_and_pools
 from reward import get_rewards
-from sgd_allocation import SGDAllocation
 from simulator import Simulator
+from src.forest_allocation import RandomForestAllocation
+from src.sgd_allocation import SGDAllocation
 
 model = RandomForestAllocation()
 sgd = SGDAllocation()

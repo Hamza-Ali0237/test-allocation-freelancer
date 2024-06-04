@@ -10,7 +10,7 @@ from src.module import Model, projection_simplex_sort
 
 
 class SGDAllocation:
-    def __init__(self, epoch=15, lr=1e-3, num_cpu=2, device='cpu'):
+    def __init__(self, epoch=15, lr=1e-3, num_cpu=3, device='cpu'):
         self.epoch = epoch
         self.lr = lr
         self._device = device
