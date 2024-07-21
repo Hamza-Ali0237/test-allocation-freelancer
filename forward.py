@@ -242,7 +242,7 @@ def main():
     model_allocation = model.predict_allocation(convert_pool(assets_and_pools))
     # sgd_allocation = sgd.predict_allocation(convert_pool(assets_and_pools), initial_allocations=model_allocation)
 
-    allocation_list = [model_allocation]
+    allocation_list = [convert_allocation(model_allocation)]
     for ind in indexes:
         sct = calculation_scatter(ind[0], ind[1], model_allocation)
         allocation_list.append(convert_allocation(sct))
