@@ -245,7 +245,7 @@ def main():
     allocation_list = [model_allocation]
     for ind in indexes:
         sct = calculation_scatter(ind[0], ind[1], model_allocation)
-        allocation_list.append(sct)
+        allocation_list.append(convert_pool(sct))
     new_model_allocation = calculation_scatter([1, 0], [6, 7], model_allocation)
 
     second_model_allocation = calculation_scatter([5, 4], [1, 0], model_allocation)
