@@ -4,11 +4,11 @@ import tqdm
 from forward import main
 
 if __name__ == '__main__':
-    data = [main() for i in tqdm.tqdm(range(100))]
+    data = [main() for i in tqdm.tqdm(range(300))]
     data = np.array(data)
 
     for i in range(104):
-        print("APY {i}:", data[:, i].mean())
+        print(f"APY {i}:", data[:, i].mean())
     # print("APY NAIVE:", data[:, 0].mean())
     # print("APY RANDOM FOREST:", data[:, 1].mean())
     # print("APY SGD:", data[:, 2].mean())
