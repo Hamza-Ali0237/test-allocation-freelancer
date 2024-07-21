@@ -1,56 +1,19 @@
-import os
-import multiprocessing
-from threading import Thread
+import numpy as np
+import tqdm
 
-from pools import generate_assets_and_pools
-from src.forest_allocation import RandomForestAllocation
-from src.sgd_allocation import SGDAllocation
-
-
-class AllocationProcess:
-    def __init__(self):
-        self._model = RandomForestAllocation()
-        self._sgd = SGDAllocation(num_cpu=2)
-        print("PID:", os.getpid())
-
-    def process(self, assets_and_pools):
-        model_allocation = self._model.predict_allocation(assets_and_pools)
-        sgd_allocation = self._sgd.predict_allocation(assets_and_pools, initial_allocations=model_allocation)
-        return sgd_allocation
-
-
-def task(data):
-    return worker_instance.process(data)
-
-
-def init_worker():
-    global worker_instance
-    worker_instance = AllocationProcess()
-
-
-def run():
-    for _ in range(1000):
-        assets_and_pools = generate_assets_and_pools()
-        pool.apply(task, (assets_and_pools,))
-
+from forward import main
 
 if __name__ == '__main__':
-    import argparse
+    data = [main() for i in tqdm.tqdm(range(100))]
+    data = np.array(data)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--processes', type=int, help='number of processes to use', default=6)
-    args = parser.parse_args()
-
-    pool = multiprocessing.Pool(processes=args.processes, initializer=init_worker, initargs=())
-
-    threads = []
-
-    for _ in range(args.processes):
-        t = Thread(target=run)
-        threads.append(t)
-
-    for t in threads:
-        t.start()
-
-    for t in threads:
-        t.join()
+    for i in range(104):
+        print("APY {i}:", data[:, i].mean())
+    # print("APY NAIVE:", data[:, 0].mean())
+    # print("APY RANDOM FOREST:", data[:, 1].mean())
+    # print("APY SGD:", data[:, 2].mean())
+    # print("APY NEW RANDOM FOREST:", data[:, 3].mean())
+    # print("-------------------------------")
+    # print("TIME NAIVE:", data[:, 3].mean()//1000_000)
+    # print("TIME RANDOM FOREST:", data[:, 4].mean()//1000_000)
+    # print("TIME SGD:", data[:, 5].mean()//1000_000)
