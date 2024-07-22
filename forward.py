@@ -1,4 +1,5 @@
 import copy
+import random
 import sys
 import time
 from decimal import Decimal
@@ -99,13 +100,20 @@ def scatter(allocation, assets_and_pools):
 def calculation_scatter(subtract, plus, allocation):
     new_allocation = copy.deepcopy(allocation)
 
-    for i in subtract:
+    n = 10 - len(subtract) - len(plus)
+    random_values = [random.choice([0.01, 0.02, 0.03, 0.04, 0.05, -0.01, -0.02, -0.03, -0.04, -0.05]) for _ in range(n - 1)]
+    random_values.append(-sum(random_values))
+    index = 0
+    for i in range(10):
         value = new_allocation[str(i)]
-        if value > 10:
-            new_allocation[str(i)] = value - 10
-
-    for i in plus:
-        new_allocation[str(i)] = new_allocation[str(i)] + 10
+        if i in subtract:
+            if value > 10:
+                new_allocation[str(i)] = value - 10
+        elif i in plus:
+            new_allocation[str(i)] = new_allocation[str(i)] + 10
+        else:
+            new_allocation[str(i)] = new_allocation[str(i)] + random_values[index]
+            index += 1
 
     return new_allocation
 
