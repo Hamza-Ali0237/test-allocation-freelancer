@@ -4,7 +4,7 @@ import tqdm
 from forward import main
 
 if __name__ == '__main__':
-    data = [main() for i in tqdm.tqdm(range(100))]
+    data = [main() for i in tqdm.tqdm(range(300))]
     data = np.array(data)
 
     for i in range(104):
