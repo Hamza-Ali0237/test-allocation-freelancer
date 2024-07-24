@@ -97,6 +97,20 @@ def scatter(allocation, assets_and_pools):
     list_alloc = list(format_allocations(allocation, assets_and_pools).values())
 
 
+def old_calculation_scatter(subtract, plus, allocation):
+    new_allocation = copy.deepcopy(allocation)
+
+    for i in subtract:
+        value = new_allocation[str(i)]
+        if value > 10:
+            new_allocation[str(i)] = value - 10
+
+    for i in plus:
+        new_allocation[str(i)] = new_allocation[str(i)] + 10
+
+    return new_allocation
+
+
 def calculation_scatter(subtract, plus, allocation):
     new_allocation = copy.deepcopy(allocation)
 
@@ -212,8 +226,13 @@ def verify_distance_index():
     assets_and_pools = generate_assets_and_pools()
     model_allocation = model.predict_allocation(convert_pool(assets_and_pools))
     allocation_list = [model_allocation]
+    count = 0
     for ind in indexes:
-        sct = calculation_scatter(ind[0], ind[1], model_allocation)
+        if count < 25:
+            sct = old_calculation_scatter(ind[0], ind[1], model_allocation)
+        else:
+            sct = calculation_scatter(ind[0], ind[1], model_allocation)
+        count +=1
         allocation_list.append(sct)
     check_distance(allocation_list, assets_and_pools)
     print(f"DISTANCE IS OKAY")
