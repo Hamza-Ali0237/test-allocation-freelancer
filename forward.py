@@ -41,22 +41,22 @@ def query_and_score(
     return apys, max_apy
 
 
-def convert_pool(asset_and_pools):
+def convert_pool(asset_and_pools, e=1e18):
     new_pools = {'0': {}, '1': {}, '2': {}, '3': {}, '4': {}, '5': {}, '6': {}, '7': {}, '8': {}, '9': {}}
-    new_asset_and_pools = {'total_assets': asset_and_pools['total_assets'] / 1e18, 'pools': new_pools}
+    new_asset_and_pools = {'total_assets': asset_and_pools['total_assets'] / e, 'pools': new_pools}
     for x, pools in asset_and_pools['pools'].items():
-        new_asset_and_pools['pools'][x]['base_slope'] = pools.base_slope / 1e18
-        new_asset_and_pools['pools'][x]['kink_slope'] = pools.kink_slope / 1e18
-        new_asset_and_pools['pools'][x]['optimal_util_rate'] = pools.optimal_util_rate / 1e18
-        new_asset_and_pools['pools'][x]['borrow_amount'] = pools.borrow_amount / 1e18
-        new_asset_and_pools['pools'][x]['reserve_size'] = pools.reserve_size / 1e18
-        new_asset_and_pools['pools'][x]['base_rate'] = pools.base_rate / 1e18
+        new_asset_and_pools['pools'][x]['base_slope'] = pools.base_slope / e
+        new_asset_and_pools['pools'][x]['kink_slope'] = pools.kink_slope / e
+        new_asset_and_pools['pools'][x]['optimal_util_rate'] = pools.optimal_util_rate / e
+        new_asset_and_pools['pools'][x]['borrow_amount'] = pools.borrow_amount / e
+        new_asset_and_pools['pools'][x]['reserve_size'] = pools.reserve_size / e
+        new_asset_and_pools['pools'][x]['base_rate'] = pools.base_rate / e
     # print(f"============>>> updated new_asset_and_pools:: {new_asset_and_pools}")
     return new_asset_and_pools
 
 
-def convert_allocation(allocation):
-    final_allocation = {str(k): float(Decimal(str(float(v) * 1e18))) for k, v in allocation.items()}
+def convert_allocation(allocation, e=1e18):
+    final_allocation = {str(k): float(Decimal(str(float(v) * e))) for k, v in allocation.items()}
     return final_allocation
 
 
@@ -97,34 +97,45 @@ def scatter(allocation, assets_and_pools):
     list_alloc = list(format_allocations(allocation, assets_and_pools).values())
 
 
-def old_calculation_scatter(subtract, plus, allocation):
+def old_calculation_scatter(subtract, plus, allocation, e=float(10)):
     new_allocation = copy.deepcopy(allocation)
-
+    count_subtract = 0
+    missing_value = 0
     for i in subtract:
         value = new_allocation[str(i)]
-        if value > 10:
-            new_allocation[str(i)] = value - 10
+        if value > e:
+            new_allocation[str(i)] = value - e
+            count_subtract = count_subtract + 1
+        else:
+            missing_value = missing_value + (e - value)
+            new_allocation[str(i)] = 0
 
     for i in plus:
-        new_allocation[str(i)] = new_allocation[str(i)] + 10
+        new_allocation[str(i)] = new_allocation[str(i)] + e
 
-    return new_allocation
+    if missing_value > 0:
+        for i in range(10):
+            if i not in subtract and i not in plus:
+                new_allocation[str(i)] = new_allocation[str(i)] - missing_value / 6
+
+    return new_allocation, count_subtract
 
 
-def calculation_scatter(subtract, plus, allocation):
+def calculation_scatter(subtract, plus, allocation, e=float(10)):
     new_allocation = copy.deepcopy(allocation)
 
     n = 10 - len(subtract) - len(plus)
-    random_values = [random.choice([0.01, 0.02, 0.03, 0.04, 0.05, -0.01, -0.02, -0.03, -0.04, -0.05]) for _ in range(n - 1)]
+    random_values = [random.choice([0.01, 0.02, 0.03, 0.04, 0.05, -0.01, -0.02, -0.03, -0.04, -0.05]) for _ in
+                     range(n - 1)]
     random_values.append(-sum(random_values))
     index = 0
     for i in range(10):
         value = new_allocation[str(i)]
         if i in subtract:
-            if value > 10:
-                new_allocation[str(i)] = value - 10
+            if value > e:
+                new_allocation[str(i)] = value - e
         elif i in plus:
-            new_allocation[str(i)] = new_allocation[str(i)] + 10
+            new_allocation[str(i)] = new_allocation[str(i)] + e
         else:
             new_allocation[str(i)] = new_allocation[str(i)] + random_values[index]
             index += 1
@@ -132,14 +143,17 @@ def calculation_scatter(subtract, plus, allocation):
     return new_allocation
 
 
-def check_distance(allocation_list, assets_and_pools):
+def check_distance(allocation_list, assets_and_pools, e=1e18):
     for i in range(len(allocation_list)):
         for j in range(i + 1, len(allocation_list)):
             alloc_a = allocation_list[i]
             alloc_b = allocation_list[j]
-            dis = distance(convert_allocation(alloc_a), convert_allocation(alloc_b), assets_and_pools)
+            dis = distance(convert_allocation(alloc_a, e=e), convert_allocation(alloc_b, e=e), assets_and_pools)
             if dis <= SIMILARITY_THRESHOLD:
                 print(f"SIMILARITY THRESHOLD REACHING - PUNISHING 👊😠")
+                print(f"i = {i}, j={j}")
+                print(f"allocation a = {alloc_a}")
+                print(f"allocation b = {alloc_b}")
                 sys.exit()
 
 
@@ -199,7 +213,7 @@ def verify_distance():
     print(f"DISTANCE IS OKAY")
 
 
-def verify_distance_index():
+def verify_distance_index_model_random_forest():
     indexes = [[[0, 1], [2, 3]], [[0, 1], [4, 5]], [[0, 1], [6, 7]], [[0, 1], [8, 9]], [[0, 2], [4, 6]],
                [[0, 2], [5, 7]], [[0, 3], [2, 8]], [[0, 3], [4, 7]], [[0, 3], [5, 6]], [[0, 4], [2, 9]],
                [[0, 5], [3, 9]], [[0, 5], [4, 8]], [[0, 7], [6, 8]], [[1, 2], [0, 4]], [[1, 2], [5, 6]],
@@ -229,12 +243,48 @@ def verify_distance_index():
     count = 0
     for ind in indexes:
         if count < 25:
-            sct = old_calculation_scatter(ind[0], ind[1], model_allocation)
+            sct, _ = old_calculation_scatter(ind[0], ind[1], model_allocation)
         else:
             sct = calculation_scatter(ind[0], ind[1], model_allocation)
-        count +=1
+        count += 1
         allocation_list.append(sct)
     check_distance(allocation_list, assets_and_pools)
+    print(f"DISTANCE IS OKAY")
+
+
+def verify_distance_index_naive_algo():
+    indexes = [[[0, 1], [2, 3]], [[0, 1], [4, 5]], [[0, 1], [6, 7]], [[0, 1], [8, 9]], [[0, 2], [4, 6]],
+               [[0, 2], [5, 7]], [[0, 3], [2, 8]], [[0, 3], [4, 7]], [[0, 3], [5, 6]], [[0, 4], [2, 9]],
+               [[0, 5], [3, 9]], [[0, 5], [4, 8]], [[0, 7], [6, 8]], [[1, 2], [0, 4]], [[1, 2], [5, 6]],
+               [[1, 2], [7, 8]], [[1, 3], [0, 2]], [[1, 3], [4, 6]], [[1, 3], [5, 7]], [[1, 4], [0, 3]],
+               [[1, 4], [7, 9]], [[1, 5], [0, 8]], [[1, 5], [2, 9]], [[1, 6], [0, 5]], [[1, 6], [3, 8]],
+               [[1, 7], [0, 6]], [[1, 8], [0, 7]], [[1, 9], [4, 8]], [[2, 3], [0, 1]], [[2, 3], [4, 5]],
+               [[2, 3], [6, 7]], [[2, 3], [8, 9]], [[2, 4], [0, 7]], [[2, 4], [1, 3]], [[2, 5], [0, 3]],
+               [[2, 5], [1, 4]], [[2, 6], [0, 8]], [[2, 6], [1, 5]], [[2, 6], [4, 9]], [[2, 7], [0, 5]],
+               [[2, 7], [1, 6]], [[2, 8], [0, 6]], [[2, 8], [1, 7]], [[2, 9], [1, 8]], [[3, 4], [0, 8]],
+               [[3, 4], [1, 2]], [[3, 5], [0, 4]], [[3, 5], [1, 8]], [[3, 6], [0, 9]], [[3, 6], [1, 4]],
+               [[3, 6], [2, 5]], [[3, 7], [1, 5]], [[3, 7], [2, 4]], [[3, 8], [0, 5]], [[3, 8], [1, 6]],
+               [[3, 8], [2, 7]], [[3, 9], [0, 6]], [[3, 9], [1, 7]], [[4, 5], [0, 1]], [[4, 5], [2, 3]],
+               [[4, 5], [6, 7]], [[4, 5], [8, 9]], [[4, 6], [0, 2]], [[4, 6], [1, 8]], [[4, 6], [3, 5]],
+               [[4, 7], [2, 5]], [[4, 7], [3, 6]], [[4, 8], [1, 5]], [[4, 8], [2, 6]], [[4, 8], [3, 7]],
+               [[4, 9], [0, 5]], [[4, 9], [1, 6]], [[4, 9], [2, 7]], [[4, 9], [3, 8]], [[5, 6], [1, 2]],
+               [[5, 6], [3, 4]], [[5, 7], [0, 2]], [[5, 7], [1, 3]], [[5, 7], [4, 6]], [[5, 8], [2, 4]],
+               [[5, 8], [3, 6]], [[5, 9], [0, 7]], [[5, 9], [2, 6]], [[6, 7], [0, 1]], [[6, 7], [2, 3]],
+               [[6, 7], [4, 5]], [[6, 7], [8, 9]], [[6, 8], [0, 3]], [[6, 8], [4, 7]], [[6, 9], [0, 4]],
+               [[6, 9], [1, 3]], [[6, 9], [2, 8]], [[6, 9], [5, 7]], [[7, 8], [0, 4]], [[7, 8], [1, 2]],
+               [[7, 8], [3, 5]], [[7, 9], [0, 3]], [[7, 9], [1, 4]], [[7, 9], [5, 6]], [[8, 9], [0, 1]],
+               [[8, 9], [2, 3]], [[8, 9], [4, 5]], [[8, 9], [6, 7]]]
+    # indexes.append([[2, 4], [8, 9]])
+    print(len(indexes))
+    assets_and_pools = generate_assets_and_pools()
+    naive_allocation = naive_algorithm(assets_and_pools)
+    allocation_list = []
+    for i in range(len(indexes)):
+        ind = indexes[i]
+        sct, count_subtract = old_calculation_scatter(ind[0], ind[1], naive_allocation, e=12e18)
+        allocation_list.append(sct)
+
+    check_distance(allocation_list, assets_and_pools, e=1)
     print(f"DISTANCE IS OKAY")
 
 
@@ -291,9 +341,40 @@ def main():
     return apys
 
 
+def compare_old_new_model():
+    assets_and_pools = generate_assets_and_pools()
+    old_model_allocation = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='old')
+    new_model_allocation = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='new')
+    naive_allocation = naive_algorithm(assets_and_pools)
+
+    allocation_list = [convert_allocation(old_model_allocation), convert_allocation(new_model_allocation),
+                       naive_allocation]
+    apys, max_apy = query_and_score(
+        allocation_list,
+        assets_and_pools)
+    return apys
+
+
+def compare_round_down_accuracy():
+    assets_and_pools = generate_assets_and_pools()
+    old_model_allocation1 = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='old',
+                                                     index=100000000)
+    old_model_allocation2 = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='old',
+                                                     index=10000000000000000)
+    naive_allocation = naive_algorithm(assets_and_pools)
+
+    allocation_list = [convert_allocation(old_model_allocation1), convert_allocation(old_model_allocation2),
+                       naive_allocation]
+    apys, max_apy = query_and_score(
+        allocation_list,
+        assets_and_pools)
+    return apys
+
+
 if __name__ == '__main__':
     while True:
-        verify_distance_index()
+        # verify_distance_index_model_random_forest()
+        verify_distance_index_naive_algo()
     # my_list = cal_combination(2, 10)
     #
     # print(len(my_list))

@@ -1,14 +1,22 @@
 import numpy as np
 import tqdm
 
-from forward import main
+from forward import main, compare_old_new_model, compare_round_down_accuracy
 
 if __name__ == '__main__':
-    data = [main() for i in tqdm.tqdm(range(300))]
+    data = [compare_old_new_model() for i in tqdm.tqdm(range(2000))]
     data = np.array(data)
 
-    for i in range(104):
-        print(f"APY {i}:", data[:, i].mean())
+    print(f"OLD MODEL APY :", data[:, 0].mean())
+    print(f"NEW MODEL APY :", data[:, 1].mean())
+    print(f"NAIVE APY :", data[:, 2].mean())
+
+    # data = [main() for i in tqdm.tqdm(range(300))]
+    # data = np.array(data)
+    #
+    # for i in range(104):
+    #     print(f"APY {i}:", data[:, i].mean())
+
     # print("APY NAIVE:", data[:, 0].mean())
     # print("APY RANDOM FOREST:", data[:, 1].mean())
     # print("APY SGD:", data[:, 2].mean())

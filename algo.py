@@ -78,7 +78,7 @@ def naive_algorithm(assets_and_pools, request_type='SYNTHETIC', user_address='-0
     return current_allocations
 
 
-def round_down(value, index=100000000):
+def round_down(value, index=1000000000000):
     return ((Decimal(str(index)) * value) // Decimal('1')) / Decimal(str(index))
 
 
