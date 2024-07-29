@@ -5,7 +5,7 @@ import time
 from decimal import Decimal
 import numpy as np
 
-from algo import naive_algorithm
+from algo import naive_algorithm, normalize_naive_algo
 from constants import SIMILARITY_THRESHOLD
 from pools import generate_assets_and_pools
 from reward import get_rewards, format_allocations
@@ -15,6 +15,28 @@ from src.sgd_allocation import SGDAllocation
 
 model = RandomForestAllocation()
 sgd = SGDAllocation()
+
+SCATTER = [[[0, 1], [2, 3]], [[0, 1], [4, 5]], [[0, 1], [6, 7]], [[0, 1], [8, 9]], [[0, 2], [4, 6]],
+           [[0, 2], [5, 7]], [[0, 3], [2, 8]], [[0, 3], [4, 7]], [[0, 3], [5, 6]], [[0, 4], [2, 9]],
+           [[0, 5], [3, 9]], [[0, 5], [4, 8]], [[0, 7], [6, 8]], [[1, 2], [0, 4]], [[1, 2], [5, 6]],
+           [[1, 2], [7, 8]], [[1, 3], [0, 2]], [[1, 3], [4, 6]], [[1, 3], [5, 7]], [[1, 4], [0, 3]],
+           [[1, 4], [7, 9]], [[1, 5], [0, 8]], [[1, 5], [2, 9]], [[1, 6], [0, 5]], [[1, 6], [3, 8]],
+           [[1, 7], [0, 6]], [[1, 8], [0, 7]], [[1, 9], [4, 8]], [[2, 3], [0, 1]], [[2, 3], [4, 5]],
+           [[2, 3], [6, 7]], [[2, 3], [8, 9]], [[2, 4], [0, 7]], [[2, 4], [1, 3]], [[2, 5], [0, 3]],
+           [[2, 5], [1, 4]], [[2, 6], [0, 8]], [[2, 6], [1, 5]], [[2, 6], [4, 9]], [[2, 7], [0, 5]],
+           [[2, 7], [1, 6]], [[2, 8], [0, 6]], [[2, 8], [1, 7]], [[2, 9], [1, 8]], [[3, 4], [0, 8]],
+           [[3, 4], [1, 2]], [[3, 5], [0, 4]], [[3, 5], [1, 8]], [[3, 6], [0, 9]], [[3, 6], [1, 4]],
+           [[3, 6], [2, 5]], [[3, 7], [1, 5]], [[3, 7], [2, 4]], [[3, 8], [0, 5]], [[3, 8], [1, 6]],
+           [[3, 8], [2, 7]], [[3, 9], [0, 6]], [[3, 9], [1, 7]], [[4, 5], [0, 1]], [[4, 5], [2, 3]],
+           [[4, 5], [6, 7]], [[4, 5], [8, 9]], [[4, 6], [0, 2]], [[4, 6], [1, 8]], [[4, 6], [3, 5]],
+           [[4, 7], [2, 5]], [[4, 7], [3, 6]], [[4, 8], [1, 5]], [[4, 8], [2, 6]], [[4, 8], [3, 7]],
+           [[4, 9], [0, 5]], [[4, 9], [1, 6]], [[4, 9], [2, 7]], [[4, 9], [3, 8]], [[5, 6], [1, 2]],
+           [[5, 6], [3, 4]], [[5, 7], [0, 2]], [[5, 7], [1, 3]], [[5, 7], [4, 6]], [[5, 8], [2, 4]],
+           [[5, 8], [3, 6]], [[5, 9], [0, 7]], [[5, 9], [2, 6]], [[6, 7], [0, 1]], [[6, 7], [2, 3]],
+           [[6, 7], [4, 5]], [[6, 7], [8, 9]], [[6, 8], [0, 3]], [[6, 8], [4, 7]], [[6, 9], [0, 4]],
+           [[6, 9], [1, 3]], [[6, 9], [2, 8]], [[6, 9], [5, 7]], [[7, 8], [0, 4]], [[7, 8], [1, 2]],
+           [[7, 8], [3, 5]], [[7, 9], [0, 3]], [[7, 9], [1, 4]], [[7, 9], [5, 6]], [[8, 9], [0, 1]],
+           [[8, 9], [2, 3]], [[8, 9], [4, 5]], [[8, 9], [6, 7]]]
 
 
 def query_and_score(
@@ -92,33 +114,41 @@ def cal_combination(k, n):
     return combinations
 
 
-def scatter(allocation, assets_and_pools):
-    e = 0.01
-    list_alloc = list(format_allocations(allocation, assets_and_pools).values())
+def subtract_allocation(alloc, e=0):
+    allocation = copy.deepcopy(alloc)
+    if e == 0:
+        return allocation
+
+    for i in range(10):
+        allocation[str(i)] = alloc[str(i)] - e
+    return allocation
+
+
+def original_calculation_scatter(subtract, plus, allocation):
+    new_allocation = copy.deepcopy(allocation)
+
+    for i in subtract:
+        value = new_allocation[str(i)]
+        if value > 10:
+            new_allocation[str(i)] = value - 10
+
+    for i in plus:
+        new_allocation[str(i)] = new_allocation[str(i)] + 10
+
+    return new_allocation
 
 
 def old_calculation_scatter(subtract, plus, allocation, e=float(10)):
     new_allocation = copy.deepcopy(allocation)
-    count_subtract = 0
-    missing_value = 0
     for i in subtract:
         value = new_allocation[str(i)]
-        if value > e:
+        if value >= e:
             new_allocation[str(i)] = value - e
-            count_subtract = count_subtract + 1
-        else:
-            missing_value = missing_value + (e - value)
-            new_allocation[str(i)] = 0
 
     for i in plus:
         new_allocation[str(i)] = new_allocation[str(i)] + e
 
-    if missing_value > 0:
-        for i in range(10):
-            if i not in subtract and i not in plus:
-                new_allocation[str(i)] = new_allocation[str(i)] - missing_value / 6
-
-    return new_allocation, count_subtract
+    return new_allocation
 
 
 def calculation_scatter(subtract, plus, allocation, e=float(10)):
@@ -214,74 +244,54 @@ def verify_distance():
 
 
 def verify_distance_index_model_random_forest():
-    indexes = [[[0, 1], [2, 3]], [[0, 1], [4, 5]], [[0, 1], [6, 7]], [[0, 1], [8, 9]], [[0, 2], [4, 6]],
-               [[0, 2], [5, 7]], [[0, 3], [2, 8]], [[0, 3], [4, 7]], [[0, 3], [5, 6]], [[0, 4], [2, 9]],
-               [[0, 5], [3, 9]], [[0, 5], [4, 8]], [[0, 7], [6, 8]], [[1, 2], [0, 4]], [[1, 2], [5, 6]],
-               [[1, 2], [7, 8]], [[1, 3], [0, 2]], [[1, 3], [4, 6]], [[1, 3], [5, 7]], [[1, 4], [0, 3]],
-               [[1, 4], [7, 9]], [[1, 5], [0, 8]], [[1, 5], [2, 9]], [[1, 6], [0, 5]], [[1, 6], [3, 8]],
-               [[1, 7], [0, 6]], [[1, 8], [0, 7]], [[1, 9], [4, 8]], [[2, 3], [0, 1]], [[2, 3], [4, 5]],
-               [[2, 3], [6, 7]], [[2, 3], [8, 9]], [[2, 4], [0, 7]], [[2, 4], [1, 3]], [[2, 5], [0, 3]],
-               [[2, 5], [1, 4]], [[2, 6], [0, 8]], [[2, 6], [1, 5]], [[2, 6], [4, 9]], [[2, 7], [0, 5]],
-               [[2, 7], [1, 6]], [[2, 8], [0, 6]], [[2, 8], [1, 7]], [[2, 9], [1, 8]], [[3, 4], [0, 8]],
-               [[3, 4], [1, 2]], [[3, 5], [0, 4]], [[3, 5], [1, 8]], [[3, 6], [0, 9]], [[3, 6], [1, 4]],
-               [[3, 6], [2, 5]], [[3, 7], [1, 5]], [[3, 7], [2, 4]], [[3, 8], [0, 5]], [[3, 8], [1, 6]],
-               [[3, 8], [2, 7]], [[3, 9], [0, 6]], [[3, 9], [1, 7]], [[4, 5], [0, 1]], [[4, 5], [2, 3]],
-               [[4, 5], [6, 7]], [[4, 5], [8, 9]], [[4, 6], [0, 2]], [[4, 6], [1, 8]], [[4, 6], [3, 5]],
-               [[4, 7], [2, 5]], [[4, 7], [3, 6]], [[4, 8], [1, 5]], [[4, 8], [2, 6]], [[4, 8], [3, 7]],
-               [[4, 9], [0, 5]], [[4, 9], [1, 6]], [[4, 9], [2, 7]], [[4, 9], [3, 8]], [[5, 6], [1, 2]],
-               [[5, 6], [3, 4]], [[5, 7], [0, 2]], [[5, 7], [1, 3]], [[5, 7], [4, 6]], [[5, 8], [2, 4]],
-               [[5, 8], [3, 6]], [[5, 9], [0, 7]], [[5, 9], [2, 6]], [[6, 7], [0, 1]], [[6, 7], [2, 3]],
-               [[6, 7], [4, 5]], [[6, 7], [8, 9]], [[6, 8], [0, 3]], [[6, 8], [4, 7]], [[6, 9], [0, 4]],
-               [[6, 9], [1, 3]], [[6, 9], [2, 8]], [[6, 9], [5, 7]], [[7, 8], [0, 4]], [[7, 8], [1, 2]],
-               [[7, 8], [3, 5]], [[7, 9], [0, 3]], [[7, 9], [1, 4]], [[7, 9], [5, 6]], [[8, 9], [0, 1]],
-               [[8, 9], [2, 3]], [[8, 9], [4, 5]], [[8, 9], [6, 7]]]
     # indexes.append([[2, 4], [8, 9]])
-    print(len(indexes))
+    print(len(SCATTER))
     assets_and_pools = generate_assets_and_pools()
-    model_allocation = model.predict_allocation(convert_pool(assets_and_pools))
+    model_allocation = model.predict_allocation(convert_pool(assets_and_pools), model='old')
     allocation_list = [model_allocation]
     count = 0
-    for ind in indexes:
-        if count < 25:
-            sct, _ = old_calculation_scatter(ind[0], ind[1], model_allocation)
+    for ind in SCATTER:
+        if count < 61:
+            sct = original_calculation_scatter(ind[0], ind[1], model_allocation)
         else:
-            sct = calculation_scatter(ind[0], ind[1], model_allocation)
+            tmp_allocation = original_calculation_scatter(ind[0], ind[1], model_allocation)
+            sct = subtract_allocation(tmp_allocation, e=1)
+
         count += 1
         allocation_list.append(sct)
+
+    old_model_allocation = model.predict_allocation(
+        assets_and_pools=convert_pool(assets_and_pools, 0.5 * assets_and_pools['total_assets']), model='old')
+    sgd_allocation = sgd.predict_allocation(
+        assets_and_pools=convert_pool(assets_and_pools, 0.5 * assets_and_pools['total_assets']),
+        initial_allocations=old_model_allocation)
+
+    final_sgd_alloc = convert_allocation(sgd_allocation, e=(0.5 * assets_and_pools['total_assets']) / 1e18)
+    allocation_list.append(final_sgd_alloc)
+
     check_distance(allocation_list, assets_and_pools)
     print(f"DISTANCE IS OKAY")
 
 
 def verify_distance_index_naive_algo():
-    indexes = [[[0, 1], [2, 3]], [[0, 1], [4, 5]], [[0, 1], [6, 7]], [[0, 1], [8, 9]], [[0, 2], [4, 6]],
-               [[0, 2], [5, 7]], [[0, 3], [2, 8]], [[0, 3], [4, 7]], [[0, 3], [5, 6]], [[0, 4], [2, 9]],
-               [[0, 5], [3, 9]], [[0, 5], [4, 8]], [[0, 7], [6, 8]], [[1, 2], [0, 4]], [[1, 2], [5, 6]],
-               [[1, 2], [7, 8]], [[1, 3], [0, 2]], [[1, 3], [4, 6]], [[1, 3], [5, 7]], [[1, 4], [0, 3]],
-               [[1, 4], [7, 9]], [[1, 5], [0, 8]], [[1, 5], [2, 9]], [[1, 6], [0, 5]], [[1, 6], [3, 8]],
-               [[1, 7], [0, 6]], [[1, 8], [0, 7]], [[1, 9], [4, 8]], [[2, 3], [0, 1]], [[2, 3], [4, 5]],
-               [[2, 3], [6, 7]], [[2, 3], [8, 9]], [[2, 4], [0, 7]], [[2, 4], [1, 3]], [[2, 5], [0, 3]],
-               [[2, 5], [1, 4]], [[2, 6], [0, 8]], [[2, 6], [1, 5]], [[2, 6], [4, 9]], [[2, 7], [0, 5]],
-               [[2, 7], [1, 6]], [[2, 8], [0, 6]], [[2, 8], [1, 7]], [[2, 9], [1, 8]], [[3, 4], [0, 8]],
-               [[3, 4], [1, 2]], [[3, 5], [0, 4]], [[3, 5], [1, 8]], [[3, 6], [0, 9]], [[3, 6], [1, 4]],
-               [[3, 6], [2, 5]], [[3, 7], [1, 5]], [[3, 7], [2, 4]], [[3, 8], [0, 5]], [[3, 8], [1, 6]],
-               [[3, 8], [2, 7]], [[3, 9], [0, 6]], [[3, 9], [1, 7]], [[4, 5], [0, 1]], [[4, 5], [2, 3]],
-               [[4, 5], [6, 7]], [[4, 5], [8, 9]], [[4, 6], [0, 2]], [[4, 6], [1, 8]], [[4, 6], [3, 5]],
-               [[4, 7], [2, 5]], [[4, 7], [3, 6]], [[4, 8], [1, 5]], [[4, 8], [2, 6]], [[4, 8], [3, 7]],
-               [[4, 9], [0, 5]], [[4, 9], [1, 6]], [[4, 9], [2, 7]], [[4, 9], [3, 8]], [[5, 6], [1, 2]],
-               [[5, 6], [3, 4]], [[5, 7], [0, 2]], [[5, 7], [1, 3]], [[5, 7], [4, 6]], [[5, 8], [2, 4]],
-               [[5, 8], [3, 6]], [[5, 9], [0, 7]], [[5, 9], [2, 6]], [[6, 7], [0, 1]], [[6, 7], [2, 3]],
-               [[6, 7], [4, 5]], [[6, 7], [8, 9]], [[6, 8], [0, 3]], [[6, 8], [4, 7]], [[6, 9], [0, 4]],
-               [[6, 9], [1, 3]], [[6, 9], [2, 8]], [[6, 9], [5, 7]], [[7, 8], [0, 4]], [[7, 8], [1, 2]],
-               [[7, 8], [3, 5]], [[7, 9], [0, 3]], [[7, 9], [1, 4]], [[7, 9], [5, 6]], [[8, 9], [0, 1]],
-               [[8, 9], [2, 3]], [[8, 9], [4, 5]], [[8, 9], [6, 7]]]
-    # indexes.append([[2, 4], [8, 9]])
-    print(len(indexes))
+    print(len(SCATTER))
     assets_and_pools = generate_assets_and_pools()
     naive_allocation = naive_algorithm(assets_and_pools)
-    allocation_list = []
-    for i in range(len(indexes)):
-        ind = indexes[i]
-        sct, count_subtract = old_calculation_scatter(ind[0], ind[1], naive_allocation, e=12e18)
+    allocation_list = [naive_allocation]
+    for i in range(len(SCATTER)):
+        ind = SCATTER[i]
+        sct = old_calculation_scatter(ind[0], ind[1], naive_allocation, e=10e18)
+        allocation_list.append(sct)
+
+    model_allocation = model.predict_allocation(convert_pool(assets_and_pools), model='old')
+    allocation_list.append(model_allocation)
+    count = 0
+    for ind in SCATTER:
+        if count < 61:
+            sct = convert_allocation(original_calculation_scatter(ind[0], ind[1], model_allocation))
+        else:
+            tmp_allocation = original_calculation_scatter(ind[0], ind[1], model_allocation)
+            sct = convert_allocation(subtract_allocation(tmp_allocation, e=1))
         allocation_list.append(sct)
 
     check_distance(allocation_list, assets_and_pools, e=1)
@@ -316,13 +326,23 @@ def main():
     # simple_allocations = naive_algorithm(assets_and_pools)
     # t1 = time.time()
 
-    model_allocation = model.predict_allocation(convert_pool(assets_and_pools))
+    model_allocation = model.predict_allocation(convert_pool(assets_and_pools), model='old')
     # sgd_allocation = sgd.predict_allocation(convert_pool(assets_and_pools), initial_allocations=model_allocation)
 
     allocation_list = [convert_allocation(model_allocation)]
+    # for ind in indexes:
+    #     sct = calculation_scatter(ind[0], ind[1], model_allocation)
+    #     allocation_list.append(convert_allocation(sct))
+
+    count = 0
     for ind in indexes:
-        sct = calculation_scatter(ind[0], ind[1], model_allocation)
+        if count < 61:
+            sct = original_calculation_scatter(ind[0], ind[1], model_allocation)
+        else:
+            tmp_allocation = original_calculation_scatter(ind[0], ind[1], model_allocation)
+            sct = subtract_allocation(tmp_allocation, e=1)
         allocation_list.append(convert_allocation(sct))
+
     new_model_allocation = calculation_scatter([1, 0], [6, 7], model_allocation)
 
     second_model_allocation = calculation_scatter([5, 4], [1, 0], model_allocation)
@@ -343,16 +363,39 @@ def main():
 
 def compare_old_new_model():
     assets_and_pools = generate_assets_and_pools()
-    old_model_allocation = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='old')
-    new_model_allocation = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='new')
+    old_model_allocation = model.predict_allocation(
+        assets_and_pools=convert_pool(assets_and_pools, 0.5 * assets_and_pools['total_assets']), model='old')
+    print(f"old_model_allocation: {old_model_allocation}")
+    new_model_allocation = model.predict_allocation(
+        assets_and_pools=convert_pool(assets_and_pools), model='old')
     naive_allocation = naive_algorithm(assets_and_pools)
+    sgd_allocation = sgd.predict_allocation(
+        assets_and_pools=convert_pool(assets_and_pools, 0.5 * assets_and_pools['total_assets']),
+        initial_allocations=old_model_allocation)
 
-    allocation_list = [convert_allocation(old_model_allocation), convert_allocation(new_model_allocation),
-                       naive_allocation]
+    ind = SCATTER[83]
+    normalize_allocation = normalize_naive_algo(
+        convert_allocation(sgd_allocation, 0.5 * assets_and_pools['total_assets']))
+    allocation_list = [convert_allocation(old_model_allocation, 0.5 * assets_and_pools['total_assets']),
+                       convert_allocation(new_model_allocation),
+                       naive_allocation,
+                       old_calculation_scatter(ind[0], ind[1], normalize_allocation, e=10e18),
+                       old_calculation_scatter(ind[0], ind[1], normalize_allocation, e=0)]
+
     apys, max_apy = query_and_score(
         allocation_list,
         assets_and_pools)
     return apys
+
+
+def check_distance_old_model_and_subtract():
+    assets_and_pools = generate_assets_and_pools()
+    old_model_allocation = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='old')
+    new_model_allocation = subtract_allocation(copy.deepcopy(old_model_allocation), 6)
+
+    allocation_list = [convert_allocation(old_model_allocation), convert_allocation(new_model_allocation)]
+    check_distance(allocation_list, assets_and_pools, e=1)
+    print(f"distance is OK")
 
 
 def compare_round_down_accuracy():
@@ -371,10 +414,24 @@ def compare_round_down_accuracy():
     return apys
 
 
+def compare_old_model_and_subtract():
+    assets_and_pools = generate_assets_and_pools()
+    old_model_allocation = model.predict_allocation(assets_and_pools=convert_pool(assets_and_pools), model='old')
+    new_model_allocation = subtract_allocation(copy.deepcopy(old_model_allocation), 1)
+
+    allocation_list = [convert_allocation(old_model_allocation), convert_allocation(new_model_allocation)]
+    apys, max_apy = query_and_score(
+        allocation_list,
+        assets_and_pools)
+    return apys
+
+
 if __name__ == '__main__':
     while True:
+        verify_distance_index_model_random_forest()
+        # verify_distance_index_naive_algo()
+        # check_distance_old_model_and_subtract()
         # verify_distance_index_model_random_forest()
-        verify_distance_index_naive_algo()
     # my_list = cal_combination(2, 10)
     #
     # print(len(my_list))
@@ -410,7 +467,6 @@ if __name__ == '__main__':
 
     # apys = calculation_scatter()
     # print(f"apy = {apys}")
-
 #     import json
 #     import numpy as np
 #
