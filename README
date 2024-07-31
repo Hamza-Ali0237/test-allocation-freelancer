@@ -1,9 +1,2 @@
 Running test:
-
-pm2 start --name sn10-model-server --interpreter python3  app.py -- 5
-or
-python3 app.py 5
-
-and then run
-
-python3 test_api.py 10
+python3 test.py
