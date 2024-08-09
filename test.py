@@ -9,5 +9,5 @@ if __name__ == '__main__':
 
     print(f"NAIVE APY :", data[:, 0].mean())
     print(f"MODEL APY  :", data[:, 1].mean())
-    print(f"FREELANCER APY  :", data[:, 2].mean())
+    # print(f"FREELANCER APY  :", data[:, 2].mean())
 
