@@ -2,6 +2,7 @@ import copy
 from decimal import Decimal
 
 from algo import naive_algorithm
+from math_solution.solution import MathSolution
 from pools import generate_assets_and_pools
 from reward import get_rewards
 from simulator import Simulator
@@ -13,6 +14,7 @@ import numpy as np
 
 model = RandomForestAllocation()
 sgd = SGDAllocation()
+math_solution = MathSolution()
 
 
 def query_and_score(
@@ -72,18 +74,17 @@ def compare():
 
     model_allocation = model.predict_allocation(convert_pool(assets_and_pools), model='old')
 
+    math_allocation = math_solution.math_allocation(convert_pool(assets_and_pools))
+
     # TODO:
-    # Call your allocation solution here and add to allocation_list to compare the result with naive_allocations
-    # and model_allocation
-    allocation_list = [naive_allocations, convert_allocation(model_allocation)]
+    # Call your allocation solution here and add to allocation_list to compare the result with naive_allocations,
+    # model_allocation and math_allocation
+    allocation_list = [naive_allocations, convert_allocation(model_allocation), convert_allocation(math_allocation)]
     apys, max_apy = query_and_score(
         allocation_list,
         assets_and_pools)
 
     return apys
-
-
-
 
 
 if __name__ == '__main__':
